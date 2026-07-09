@@ -24,6 +24,18 @@ const node = (overrides = {}) => {
   }
 }
 
+const registryShapedRemoteUrl =
+  // Registry-shaped so versionFromTgz can parse it; isRegistryDependency:false drives identity.
+  'https://example.com/cypress/-/cypress-15.18.1.tgz'
+const registryShapedRemoteNode = () => Object.assign(node({
+  name: 'cypress',
+  version: '15.18.1',
+  resolved: registryShapedRemoteUrl,
+  isRegistryDependency: false,
+}), {
+  edgesIn: new Set([{ spec: registryShapedRemoteUrl }]),
+})
+
 // A registry node with no `resolved` URL in the lockfile. Its trusted name
 // comes from a dependency edge, but its version isn't trustable, so
 // versionedKeyFor returns null (npm/cli#9558).
@@ -45,6 +57,12 @@ t.test('nameKeyFor / versionedKeyFor — registry', async t => {
   const n = node({ name: 'canvas', version: '2.11.0' })
   t.equal(nameKeyFor(n), 'canvas')
   t.equal(versionedKeyFor(n), 'canvas@2.11.0')
+})
+
+t.test('nameKeyFor / versionedKeyFor — remote tarball uses exact resolved URL', async t => {
+  const n = registryShapedRemoteNode()
+  t.equal(nameKeyFor(n), registryShapedRemoteUrl)
+  t.equal(versionedKeyFor(n), registryShapedRemoteUrl)
 })
 
 t.test('nameKeyFor / versionedKeyFor — git', async t => {
@@ -130,6 +148,26 @@ t.test('applyApprovalForPackage — empty allowScripts, --no-pin', async t => {
   )
   t.strictSame(allowScripts, { canvas: true })
   t.strictSame(changes, [{ key: 'canvas', change: 'added' }])
+})
+
+t.test('applyApprovalForPackage — remote tarball writes exact URL with --pin', async t => {
+  const { allowScripts, changes } = applyApprovalForPackage(
+    {},
+    [registryShapedRemoteNode()],
+    { pin: true }
+  )
+  t.strictSame(allowScripts, { [registryShapedRemoteUrl]: true })
+  t.strictSame(changes, [{ key: registryShapedRemoteUrl, change: 'added' }])
+})
+
+t.test('applyApprovalForPackage — remote tarball writes exact URL with --no-pin', async t => {
+  const { allowScripts, changes } = applyApprovalForPackage(
+    {},
+    [registryShapedRemoteNode()],
+    { pin: false }
+  )
+  t.strictSame(allowScripts, { [registryShapedRemoteUrl]: true })
+  t.strictSame(changes, [{ key: registryShapedRemoteUrl, change: 'added' }])
 })
 
 t.test('applyApprovalForPackage — stale pin rewritten to new installed version', async t => {
@@ -305,6 +343,15 @@ t.test('applyDenyForPackage — empty allowScripts adds name-only false', async 
   )
   t.strictSame(allowScripts, { 'core-js': false })
   t.strictSame(changes, [{ key: 'core-js', change: 'added' }])
+})
+
+t.test('applyDenyForPackage — remote tarball writes exact URL', async t => {
+  const { allowScripts, changes } = applyDenyForPackage(
+    {},
+    [registryShapedRemoteNode()]
+  )
+  t.strictSame(allowScripts, { [registryShapedRemoteUrl]: false })
+  t.strictSame(changes, [{ key: registryShapedRemoteUrl, change: 'added' }])
 })
 
 t.test('applyDenyForPackage — pinned allow is replaced by name-only deny', async t => {
@@ -493,14 +540,17 @@ t.test('applyApprovalForPackage — file dep with deny entry blocks approval', a
   t.match(warning, /denied|versioned deny/)
 })
 
-t.test('applyApprovalForPackage — remote tarball deny blocks approval', async t => {
-  const remote = { name: 'pkg', packageName: 'pkg', version: '1.0.0', resolved: 'https://example.com/pkg.tgz' }
-  const { warning } = applyApprovalForPackage(
-    { 'https://example.com/pkg.tgz': false },
-    [remote],
+t.test('applyApprovalForPackage — remote tarball deny requires removal-only guidance', async t => {
+  const { allowScripts, changes, warning } = applyApprovalForPackage(
+    { [registryShapedRemoteUrl]: false },
+    [registryShapedRemoteNode()],
     { pin: true }
   )
-  t.match(warning, /denied|versioned deny/)
+  t.strictSame(allowScripts, { [registryShapedRemoteUrl]: false })
+  t.strictSame(changes, [])
+  t.match(warning, /remove the entry/)
+  t.notMatch(warning, /versioned deny/)
+  t.notMatch(warning, /widen the deny/)
 })
 
 t.test('applyApprovalForPackage — no-pin with no name produces no-op', async t => {

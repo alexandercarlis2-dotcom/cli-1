@@ -8,11 +8,21 @@ const mockNpm = async (t, opts = {}) => {
   return _mockNpm(t, opts)
 }
 
-const setupProject = ({ allowScripts, withScripts = ['canvas'], noScripts = [] } = {}) => {
+const remoteCypressUrl =
+  'https://cdn.example.test/releases/cypress.tgz'
+
+const setupProject = ({
+  allowScripts,
+  withScripts = ['canvas'],
+  noScripts = [],
+  remoteUrls = {},
+} = {}) => {
   const pkg = {
     name: 'host',
     version: '1.0.0',
-    dependencies: Object.fromEntries([...withScripts, ...noScripts].map((n) => [n, '*'])),
+    dependencies: Object.fromEntries(
+      [...withScripts, ...noScripts].map((name) => [name, remoteUrls[name] ?? '*'])
+    ),
   }
   if (allowScripts !== undefined) {
     pkg.allowScripts = allowScripts
@@ -31,7 +41,8 @@ const setupProject = ({ allowScripts, withScripts = ['canvas'], noScripts = [] }
     lockPackages[`node_modules/${name}`] = {
       version: '1.0.0',
       hasInstallScript: true,
-      resolved: `https://registry.npmjs.org/${name}/-/${name}-1.0.0.tgz`,
+      resolved: remoteUrls[name] ??
+        `https://registry.npmjs.org/${name}/-/${name}-1.0.0.tgz`,
     }
   }
   for (const name of noScripts) {
@@ -40,7 +51,8 @@ const setupProject = ({ allowScripts, withScripts = ['canvas'], noScripts = [] }
     }
     lockPackages[`node_modules/${name}`] = {
       version: '1.0.0',
-      resolved: `https://registry.npmjs.org/${name}/-/${name}-1.0.0.tgz`,
+      resolved: remoteUrls[name] ??
+        `https://registry.npmjs.org/${name}/-/${name}-1.0.0.tgz`,
     }
   }
 
@@ -81,6 +93,19 @@ t.test('install-scripts approve <pkg> writes a pinned entry', async t => {
   t.strictSame(pkg.allowScripts, { 'canvas@1.0.0': true })
 })
 
+t.test('install-scripts approve <pkg> writes exact URL for a remote tarball', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupProject({
+      withScripts: ['cypress'],
+      remoteUrls: { cypress: remoteCypressUrl },
+    }),
+  })
+  await npm.exec('install-scripts', ['approve', 'cypress'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { [remoteCypressUrl]: true })
+})
+
 t.test('install-scripts approve --all approves every unreviewed package', async t => {
   const { npm, prefix } = await mockNpm(t, {
     prefixDir: setupProject({ withScripts: ['canvas', 'sharp'] }),
@@ -95,6 +120,20 @@ t.test('install-scripts approve --all approves every unreviewed package', async 
   })
 })
 
+t.test('install-scripts approve --all writes exact URL for a remote tarball', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupProject({
+      withScripts: ['cypress'],
+      remoteUrls: { cypress: remoteCypressUrl },
+    }),
+    config: { all: true },
+  })
+  await npm.exec('install-scripts', ['approve'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { [remoteCypressUrl]: true })
+})
+
 t.test('install-scripts deny <pkg> writes a name-only false entry', async t => {
   const { npm, prefix } = await mockNpm(t, {
     prefixDir: setupProject({ withScripts: ['canvas'] }),
@@ -103,6 +142,19 @@ t.test('install-scripts deny <pkg> writes a name-only false entry', async t => {
 
   const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
   t.strictSame(pkg.allowScripts, { canvas: false })
+})
+
+t.test('install-scripts deny <pkg> writes exact URL for a remote tarball', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupProject({
+      withScripts: ['cypress'],
+      remoteUrls: { cypress: remoteCypressUrl },
+    }),
+  })
+  await npm.exec('install-scripts', ['deny', 'cypress'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { [remoteCypressUrl]: false })
 })
 
 t.test('install-scripts deny --all denies every unreviewed package', async t => {
@@ -114,6 +166,20 @@ t.test('install-scripts deny --all denies every unreviewed package', async t => 
 
   const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
   t.strictSame(pkg.allowScripts, { canvas: false, sharp: false })
+})
+
+t.test('install-scripts deny --all writes exact URL for a remote tarball', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupProject({
+      withScripts: ['cypress'],
+      remoteUrls: { cypress: remoteCypressUrl },
+    }),
+    config: { all: true },
+  })
+  await npm.exec('install-scripts', ['deny'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { [remoteCypressUrl]: false })
 })
 
 t.test('install-scripts ignores allow-scripts-pending and still writes', async t => {
