@@ -63,7 +63,8 @@ to the hosted repository (`github:org/repo`).
 the package from any future blanket approval. Direct remote tarball denials use
 the exact resolved URL, file dependency denials use the resolved file spec, and
 hosted git denials use the hosted repository shortcut without a committish.
-`--all` denies every package with unreviewed install scripts.
+These denial identities are independent of `--allow-scripts-pin`. `--all` denies
+every package with unreviewed install scripts.
 
 `ls` is read-only: it lists every package whose install scripts are not yet
 covered by `allowScripts`, without modifying `package.json`.
