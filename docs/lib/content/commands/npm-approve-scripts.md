@@ -47,6 +47,9 @@ approving a dependency installed from `https://example.com/tool.tgz` writes
 `"https://example.com/tool.tgz": true`. The URL remains exact even with
 `--no-allow-scripts-pin`.
 
+For a file dependency, approval writes the resolved file spec, and it stays
+exact with `--no-allow-scripts-pin` as well.
+
 `--all` approves every package with unreviewed install scripts in one go.
 
 `--allow-scripts-pending` is read-only: it lists every package whose install scripts

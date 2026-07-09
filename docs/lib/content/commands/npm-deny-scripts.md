@@ -28,9 +28,9 @@ npm deny-scripts --all
 `<pkg>` selects installed dependencies by their displayed package name.
 Registry-package denials are written name-only (`"pkg": false`), regardless
 of `--allow-scripts-pin`, so a future registry version does not silently
-regain script permission. Non-registry dependencies use their trusted
-source identity instead: a remote tarball is denied by its exact `resolved`
-URL and a file dependency by its resolved file spec. Tarball-reported
+regain script permission. Direct remote tarballs are denied by their exact
+`resolved` URL, file dependencies by their resolved file spec, and hosted git
+dependencies by repository identity without a commit. Tarball-reported
 package names are never used as policy identities.
 
 `--all` denies every package with unreviewed install scripts.
