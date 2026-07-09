@@ -25,11 +25,13 @@ npm deny-scripts <pkg> [<pkg> ...]
 npm deny-scripts --all
 ```
 
-`<pkg>` matches every installed version of that package. Denies are always
-written name-only (`"pkg": false`), regardless of `--allow-scripts-pin`. Pinning a deny
-to a specific version would silently re-allow scripts for any other version
-of the same package, which defeats the purpose; the command picks the
-safer default for you.
+`<pkg>` selects installed dependencies by their displayed package name.
+Registry-package denials are written name-only (`"pkg": false`), regardless
+of `--allow-scripts-pin`, so a future registry version does not silently
+regain script permission. Non-registry dependencies use their trusted
+source identity instead: a remote tarball is denied by its exact `resolved`
+URL and a file dependency by its resolved file spec. Tarball-reported
+package names are never used as policy identities.
 
 `--all` denies every package with unreviewed install scripts.
 

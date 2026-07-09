@@ -41,6 +41,12 @@ command writes pinned entries (`pkg@1.2.3`), which keep their approval
 narrowed to the specific version you reviewed. Pass `--no-allow-scripts-pin` to write
 name-only entries that allow any future version.
 
+For a direct remote tarball, approval writes the exact `resolved` URL from
+`package-lock.json`, not the package name inside the tarball. For example,
+approving a dependency installed from `https://example.com/tool.tgz` writes
+`"https://example.com/tool.tgz": true`. The URL remains exact even with
+`--no-allow-scripts-pin`.
+
 `--all` approves every package with unreviewed install scripts in one go.
 
 `--allow-scripts-pending` is read-only: it lists every package whose install scripts

@@ -46,6 +46,13 @@ reviewed. Pass `--no-allow-scripts-pin` to write name-only entries that allow
 any future version. `--all` approves every package with unreviewed install
 scripts in one go.
 
+For non-registry dependencies, npm records the trusted source identity
+instead of the package name reported by the tarball. Remote tarballs use
+the exact `resolved` URL from `package-lock.json`, and file dependencies
+use their resolved file spec. These identities remain exact with
+`--no-allow-scripts-pin`, because there is no trusted package-name form
+to broaden them to.
+
 `deny` records an explicit denial for the named packages (a name-only `false`
 entry), which survives `npm install-scripts approve --all` and excludes the
 package from any future blanket approval. `--all` denies every package with
