@@ -58,13 +58,14 @@ with the resolved committish (for example, `github:org/repo#abc1234`).
 With `--no-allow-scripts-pin`, npm drops the committish and broadens approval
 to the hosted repository (`github:org/repo`).
 
-`deny` records an explicit denial for registry dependencies as a name-only
-`false` entry, which survives `npm install-scripts approve --all` and excludes
-the package from any future blanket approval. Direct remote tarball denials use
-the exact resolved URL, file dependency denials use the resolved file spec, and
-hosted git denials use the hosted repository shortcut without a committish.
-These denial identities are independent of `--allow-scripts-pin`. `--all` denies
-every package with unreviewed install scripts.
+`deny` records an explicit denial that survives
+`npm install-scripts approve --all` and excludes the dependency from any
+future blanket approval. Registry dependencies use a name-only `false` entry,
+direct remote tarballs use the exact resolved URL, file dependencies use the
+resolved file spec, and hosted git dependencies use the hosted repository
+shortcut without a committish. These denial identities are independent of
+`--allow-scripts-pin`. `--all` denies every package with unreviewed install
+scripts.
 
 `ls` is read-only: it lists every package whose install scripts are not yet
 covered by `allowScripts`, without modifying `package.json`.

@@ -31,7 +31,7 @@ of `--allow-scripts-pin`, so a future registry version does not silently
 regain script permission. Direct remote tarballs are denied by their exact
 `resolved` URL (for example, `"https://registry.example/pkg.tgz": false`),
 file dependencies by their resolved file spec (for example,
-`"file:../pkg.tgz": false`), and hosted git dependencies by the hosted
+`"file:../packages/logger": false`), and hosted git dependencies by the hosted
 repository shortcut without a committish (for example,
 `"github:org/repo": false`). Tarball-reported package names are never used
 as policy identities.
@@ -39,7 +39,7 @@ as policy identities.
 `--all` denies every package with unreviewed install scripts.
 
 If a `true` (pinned or name-only) entry exists for a package and you then
-deny it, the existing allow entries are removed so the name-only deny is
+deny it, the existing allow entries are removed so the denial entry is
 unambiguous.
 
 ### Examples
@@ -59,5 +59,6 @@ npm deny-scripts --all
 ### See Also
 
 * [npm approve-scripts](/commands/npm-approve-scripts)
+* [npm install-scripts](/commands/npm-install-scripts)
 * [npm install](/commands/npm-install)
 * [package.json](/configuring-npm/package-json)

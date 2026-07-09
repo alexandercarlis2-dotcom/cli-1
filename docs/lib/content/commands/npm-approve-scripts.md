@@ -100,6 +100,7 @@ npm approve-scripts --allow-scripts-pending
 ### See Also
 
 * [npm deny-scripts](/commands/npm-deny-scripts)
+* [npm install-scripts](/commands/npm-install-scripts)
 * [npm install](/commands/npm-install)
 * [npm rebuild](/commands/npm-rebuild)
 * [package.json](/configuring-npm/package-json)
