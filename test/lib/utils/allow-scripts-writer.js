@@ -65,6 +65,20 @@ t.test('nameKeyFor / versionedKeyFor — remote tarball uses exact resolved URL'
   t.equal(versionedKeyFor(n), registryShapedRemoteUrl)
 })
 
+t.test('nameKeyFor / versionedKeyFor — non-registry HTTP node with no HTTP edges is not direct-remote', async t => {
+  // isRegistryDependency:false and HTTP resolved, but the incoming edge is a
+  // file spec — hasIncomingRemoteEdge finds no HTTP edge and returns false.
+  // The null-spec edge also exercises the `edge?.spec || ''` defensive guard.
+  // Neither helper can derive a trusted key, so both return null.
+  const n = Object.assign(node({
+    name: 'pkg',
+    isRegistryDependency: false,
+    resolved: 'https://cdn.example.com/releases/pkg.tgz',
+  }), { edgesIn: new Set([{ spec: null }, { spec: 'file:../pkg' }]) })
+  t.equal(nameKeyFor(n), null)
+  t.equal(versionedKeyFor(n), null)
+})
+
 t.test('nameKeyFor / versionedKeyFor — git', async t => {
   const n = node({
     name: 'bar',
@@ -158,6 +172,20 @@ t.test('applyApprovalForPackage — remote tarball writes exact URL with --pin',
   )
   t.strictSame(allowScripts, { [registryShapedRemoteUrl]: true })
   t.strictSame(changes, [{ key: registryShapedRemoteUrl, change: 'added' }])
+})
+
+t.test('applyApprovalForPackage — remote tarball ignores registry-only deny for same name/version', async t => {
+  const { allowScripts, changes, warning } = applyApprovalForPackage(
+    { 'cypress@15.18.1': false },
+    [registryShapedRemoteNode()],
+    { pin: true }
+  )
+  t.strictSame(allowScripts, {
+    'cypress@15.18.1': false,
+    [registryShapedRemoteUrl]: true,
+  })
+  t.strictSame(changes, [{ key: registryShapedRemoteUrl, change: 'added' }])
+  t.equal(warning, undefined)
 })
 
 t.test('applyApprovalForPackage — remote tarball writes exact URL with --no-pin', async t => {
