@@ -60,9 +60,9 @@ to the hosted repository (`github:org/repo`).
 
 `deny` records an explicit denial for registry dependencies as a name-only
 `false` entry, which survives `npm install-scripts approve --all` and excludes
-the package from any future blanket approval. Direct remote tarball and file
-dependency denials use the exact source identities described above, while a
-hosted git denial uses the hosted repository shortcut without a committish.
+the package from any future blanket approval. Direct remote tarball denials use
+the exact resolved URL, file dependency denials use the resolved file spec, and
+hosted git denials use the hosted repository shortcut without a committish.
 `--all` denies every package with unreviewed install scripts.
 
 `ls` is read-only: it lists every package whose install scripts are not yet
