@@ -47,8 +47,14 @@ approving a dependency installed from `https://example.com/tool.tgz` writes
 `"https://example.com/tool.tgz": true`. The URL remains exact even with
 `--no-allow-scripts-pin`.
 
-For a file dependency, approval writes the resolved file spec, and it stays
-exact with `--no-allow-scripts-pin` as well.
+For a file dependency, approval writes the resolved file spec. For example,
+`"file:../packages/logger": true`. It stays exact with
+`--no-allow-scripts-pin` as well.
+
+For a hosted git dependency, approval writes the hosted repository shortcut
+with the resolved committish (for example, `github:org/repo#abc1234`).
+With `--no-allow-scripts-pin`, npm drops the committish and broadens approval
+to the hosted repository (`github:org/repo`).
 
 `--all` approves every package with unreviewed install scripts in one go.
 

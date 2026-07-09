@@ -47,17 +47,23 @@ any future version. `--all` approves every package with unreviewed install
 scripts in one go.
 
 For direct remote tarballs and file dependencies, npm records the trusted
-source identity instead of the package name reported by the tarball. Direct
-remote tarballs use the exact `resolved` URL from `package-lock.json`, and
-file dependencies use their resolved file spec. These identities remain exact
-with `--no-allow-scripts-pin`, because there is no trusted package-name form
-to broaden them to.
+source identity instead of the package name reported by the dependency.
+Direct remote tarballs use the exact `resolved` URL from `package-lock.json`,
+and file dependencies use their resolved file spec. These identities remain
+exact with `--no-allow-scripts-pin`, because there is no trusted package-name
+form to broaden them to.
+
+For hosted git dependencies, approval writes the hosted repository shortcut
+with the resolved committish (for example, `github:org/repo#abc1234`).
+With `--no-allow-scripts-pin`, npm drops the committish and broadens approval
+to the hosted repository (`github:org/repo`).
 
 `deny` records an explicit denial for registry dependencies as a name-only
 `false` entry, which survives `npm install-scripts approve --all` and excludes
-the package from any future blanket approval. For direct remote tarballs,
-file dependencies, and hosted git dependencies, the source-specific identities
-above apply. `--all` denies every package with unreviewed install scripts.
+the package from any future blanket approval. Direct remote tarball and file
+dependency denials use the exact source identities described above, while a
+hosted git denial uses the hosted repository shortcut without a committish.
+`--all` denies every package with unreviewed install scripts.
 
 `ls` is read-only: it lists every package whose install scripts are not yet
 covered by `allowScripts`, without modifying `package.json`.
