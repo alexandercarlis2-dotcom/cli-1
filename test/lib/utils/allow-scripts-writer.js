@@ -27,13 +27,13 @@ const node = (overrides = {}) => {
 const registryShapedRemoteUrl =
   // Registry-shaped so versionFromTgz can parse it; isRegistryDependency:false drives identity.
   'https://example.com/cypress/-/cypress-15.18.1.tgz'
-const registryShapedRemoteNode = () => Object.assign(node({
+const registryShapedRemoteNode = (url = registryShapedRemoteUrl) => Object.assign(node({
   name: 'cypress',
   version: '15.18.1',
-  resolved: registryShapedRemoteUrl,
+  resolved: url,
   isRegistryDependency: false,
 }), {
-  edgesIn: new Set([{ spec: registryShapedRemoteUrl }]),
+  edgesIn: new Set([{ spec: url }]),
 })
 
 // A registry node with no `resolved` URL in the lockfile. Its trusted name
@@ -60,21 +60,40 @@ t.test('nameKeyFor / versionedKeyFor — registry', async t => {
 })
 
 t.test('nameKeyFor / versionedKeyFor — remote tarball uses exact resolved URL', async t => {
-  const n = registryShapedRemoteNode()
-  t.equal(nameKeyFor(n), registryShapedRemoteUrl)
-  t.equal(versionedKeyFor(n), registryShapedRemoteUrl)
+  for (const url of [
+    registryShapedRemoteUrl,
+    'HTTPS://example.com/cypress/-/cypress-15.18.1.tgz',
+    'https:/example.com/cypress/-/cypress-15.18.1.tgz',
+  ]) {
+    const n = registryShapedRemoteNode(url)
+    t.equal(nameKeyFor(n), url)
+    t.equal(versionedKeyFor(n), url)
+  }
 })
 
-t.test('nameKeyFor / versionedKeyFor — non-registry HTTP node with no HTTP edges is not direct-remote', async t => {
-  // isRegistryDependency:false and HTTP resolved, but the incoming edge is a
-  // file spec — hasIncomingRemoteEdge finds no HTTP edge and returns false.
-  // The null-spec edge also exercises the `edge?.spec || ''` defensive guard.
-  // Neither helper can derive a trusted key, so both return null.
+t.test('nameKeyFor / versionedKeyFor — registry tarball URL without remote edge uses registry identity', async t => {
+  const n = Object.assign(registryShapedRemoteNode(), {
+    edgesIn: new Set([{ spec: '^15.18.1' }]),
+  })
+  t.equal(nameKeyFor(n), 'cypress')
+  t.equal(versionedKeyFor(n), 'cypress@15.18.1')
+})
+
+t.test('nameKeyFor / versionedKeyFor — non-registry remote node with no remote edges is not direct-remote', async t => {
+  // isRegistryDependency:false and a remote resolved URL are not sufficient
+  // when none of the incoming edge specs is classified as remote.
+  // Null and malformed specs exercise isRemoteSpec's defensive paths.
   const n = Object.assign(node({
     name: 'pkg',
     isRegistryDependency: false,
     resolved: 'https://cdn.example.com/releases/pkg.tgz',
-  }), { edgesIn: new Set([{ spec: null }, { spec: 'file:../pkg' }]) })
+  }), {
+    edgesIn: new Set([
+      { spec: null },
+      { spec: 'https://' },
+      { spec: 'file:../pkg' },
+    ]),
+  })
   t.equal(nameKeyFor(n), null)
   t.equal(versionedKeyFor(n), null)
 })
