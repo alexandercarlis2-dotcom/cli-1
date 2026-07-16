@@ -10,6 +10,8 @@ const mockNpm = async (t, opts = {}) => {
 
 const remoteCypressUrl =
   'https://cdn.example.test/releases/cypress.tgz'
+const registryShapedRemoteCypressUrl =
+  'https://cdn.example.test/artifact/-/artifact-1.0.0.tgz'
 
 const setupProject = ({
   allowScripts,
@@ -104,6 +106,19 @@ t.test('install-scripts approve <pkg> writes exact URL for a remote tarball', as
 
   const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
   t.strictSame(pkg.allowScripts, { [remoteCypressUrl]: true })
+})
+
+t.test('install-scripts approve <pkg> selects a remote tarball by installed name', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: setupProject({
+      withScripts: ['cypress'],
+      remoteUrls: { cypress: registryShapedRemoteCypressUrl },
+    }),
+  })
+  await npm.exec('install-scripts', ['approve', 'cypress'])
+
+  const pkg = JSON.parse(fs.readFileSync(resolve(prefix, 'package.json'), 'utf8'))
+  t.strictSame(pkg.allowScripts, { [registryShapedRemoteCypressUrl]: true })
 })
 
 t.test('install-scripts approve --all approves every unreviewed package', async t => {
