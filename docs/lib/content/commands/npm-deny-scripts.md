@@ -34,7 +34,15 @@ file dependencies by their resolved file spec (for example,
 `"file:../packages/logger": false`), and hosted git dependencies by the hosted
 repository shortcut without a committish (for example,
 `"github:org/repo": false`). Tarball-reported package names are never used
-as policy identities.
+as policy identities. Linked directories use their canonical physical target
+path rather than a context-relative link string.
+
+A bare installed name denies every matching non-registry source. To select
+only one source when several share a name, pass its exact selector from
+`npm install-scripts ls`. Remote and file denials stay exact; a selected
+hosted-git dependency is denied at the repository level. Non-registry version
+and range selectors are not supported because those versions come from the
+dependency itself.
 
 `--all` denies every package with unreviewed install scripts.
 

@@ -1,5 +1,7 @@
 const t = require('tap')
 const path = require('node:path')
+const npa = require('npm-package-arg')
+const isScriptAllowed = require('@npmcli/arborist/lib/script-allowed.js')
 const {
   applyApprovalForPackage,
   applyDenyForPackage,
@@ -27,13 +29,27 @@ const node = (overrides = {}) => {
 const registryShapedRemoteUrl =
   // Registry-shaped so versionFromTgz can parse it; isRegistryDependency:false drives identity.
   'https://example.com/cypress/-/cypress-15.18.1.tgz'
-const registryShapedRemoteNode = (url = registryShapedRemoteUrl) => Object.assign(node({
-  name: 'cypress',
-  version: '15.18.1',
-  resolved: url,
-  isRegistryDependency: false,
-}), {
+const registryShapedRemoteNode = (url = registryShapedRemoteUrl) => ({
+  ...node({
+    name: 'cypress',
+    version: '15.18.1',
+    resolved: url,
+    isRegistryDependency: false,
+  }),
   edgesIn: new Set([{ spec: url }]),
+})
+
+const linkedCypressNode = (...specs) => ({
+  ...node({
+    name: 'cypress',
+    version: '15.18.1',
+    resolved: registryShapedRemoteUrl,
+    isRegistryDependency: false,
+  }),
+  edgesIn: new Set(),
+  linksIn: new Set(specs.map(spec => ({
+    edgesIn: new Set([{ name: 'cypress', spec }]),
+  }))),
 })
 
 // A registry node with no `resolved` URL in the lockfile. Its trusted name
@@ -79,6 +95,54 @@ t.test('nameKeyFor / versionedKeyFor — registry tarball URL without remote edg
   t.equal(versionedKeyFor(n), 'cypress@15.18.1')
 })
 
+t.test('nameKeyFor / versionedKeyFor — linked remote target uses incoming Link provenance', async t => {
+  const n = linkedCypressNode(registryShapedRemoteUrl)
+
+  t.equal(nameKeyFor(n), registryShapedRemoteUrl)
+  t.equal(versionedKeyFor(n), registryShapedRemoteUrl)
+  t.equal(isScriptAllowed(n, { [registryShapedRemoteUrl]: true }), true)
+})
+
+t.test('nameKeyFor / versionedKeyFor — incoming Link provenance is cycle-safe', async t => {
+  const n = linkedCypressNode(registryShapedRemoteUrl)
+  const [link] = n.linksIn
+  link.linksIn = new Set([n])
+
+  t.equal(nameKeyFor(n), registryShapedRemoteUrl)
+  t.equal(versionedKeyFor(n), registryShapedRemoteUrl)
+})
+
+t.test('nameKeyFor / versionedKeyFor — linked registry target keeps registry identity', async t => {
+  const n = linkedCypressNode('^15.18.1')
+
+  t.equal(nameKeyFor(n), 'cypress')
+  t.equal(versionedKeyFor(n), 'cypress@15.18.1')
+})
+
+t.test('nameKeyFor / versionedKeyFor — mixed linked provenance prefers exact remote identity', async t => {
+  const n = linkedCypressNode('^15.18.1', registryShapedRemoteUrl)
+
+  t.equal(nameKeyFor(n), registryShapedRemoteUrl)
+  t.equal(versionedKeyFor(n), registryShapedRemoteUrl)
+})
+
+t.test('nameKeyFor / versionedKeyFor — remote provenance without exact resolved URL fails closed', async t => {
+  const n = linkedCypressNode(registryShapedRemoteUrl)
+  n.resolved = null
+  const [link] = n.linksIn
+  link.resolved = 'file:.store/cypress'
+
+  t.equal(nameKeyFor(n), null)
+  t.equal(versionedKeyFor(n), null)
+})
+
+t.test('nameKeyFor / versionedKeyFor — registry-shaped URL without source provenance fails closed', async t => {
+  const n = linkedCypressNode()
+
+  t.equal(nameKeyFor(n), null)
+  t.equal(versionedKeyFor(n), null)
+})
+
 t.test('nameKeyFor / versionedKeyFor — non-registry remote node with no remote edges is not direct-remote', async t => {
   // isRegistryDependency:false and a remote resolved URL are not sufficient
   // when none of the incoming edge specs is classified as remote.
@@ -115,6 +179,7 @@ t.test('nameKeyFor / versionedKeyFor — file', async t => {
 
 t.test('nameKeyFor / versionedKeyFor — local directory link target', async t => {
   const targetPath = path.resolve('local')
+  const targetKey = npa(targetPath).saveSpec
   const n = {
     name: 'local',
     packageName: 'local',
@@ -125,17 +190,38 @@ t.test('nameKeyFor / versionedKeyFor — local directory link target', async t =
     linksIn: new Set([{ resolved: 'file:../local' }]),
   }
 
-  t.equal(nameKeyFor(n), 'file:../local')
-  t.equal(versionedKeyFor(n), 'file:../local')
+  t.equal(nameKeyFor(n), targetKey)
+  t.equal(versionedKeyFor(n), targetKey)
 
   t.strictSame(
     applyApprovalForPackage({}, [n], { pin: true }).allowScripts,
-    { 'file:../local': true }
+    { [targetKey]: true }
   )
   t.match(
     applyApprovalForPackage({ 'file:local': false }, [n], { pin: true }).warning,
     /denied|versioned deny/
   )
+})
+
+t.test('nameKeyFor / versionedKeyFor — linked file targets use canonical physical paths', async t => {
+  const linkSpec = 'file:../../tool'
+  const targets = ['good-tool', 'attacker-tool'].map(name => {
+    const targetPath = path.resolve(name)
+    return {
+      name: 'tool',
+      packageName: 'tool',
+      version: '1.0.0',
+      resolved: null,
+      path: targetPath,
+      realpath: targetPath,
+      linksIn: new Set([{ resolved: linkSpec }]),
+    }
+  })
+
+  const keys = targets.map(nameKeyFor)
+  t.strictSame(keys, targets.map(target => npa(target.realpath).saveSpec))
+  t.not(keys[0], keys[1])
+  t.strictSame(targets.map(versionedKeyFor), keys)
 })
 
 t.test('nameKeyFor / versionedKeyFor — empty link target has no portable file key', async t => {

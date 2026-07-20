@@ -1,5 +1,6 @@
 const npa = require('npm-package-arg')
 const semver = require('semver')
+const { resolve } = require('node:path')
 const versionFromTgz = require('./version-from-tgz.js')
 
 // Identity matcher for the allowScripts policy.
@@ -328,6 +329,27 @@ const matchGit = (node, parsed) => {
 }
 
 const matchFileOrDir = (node, parsed) => {
+  if (!node?.resolved && node?.linksIn &&
+      typeof node.linksIn[Symbol.iterator] === 'function') {
+    for (const link of node.linksIn) {
+      if (!link) {
+        continue
+      }
+      const target = node.realpath || node.path
+      if (!target) {
+        return false
+      }
+      let keyTarget
+      try {
+        keyTarget = npa(parsed.raw, node.root?.path || process.cwd()).fetchSpec
+      } catch {
+        return false
+      }
+      return typeof keyTarget === 'string' &&
+        resolve(keyTarget) === resolve(target)
+    }
+  }
+
   return resolvedSourceSpecs(node)
     .some(resolved => resolved === parsed.saveSpec || resolved === parsed.fetchSpec)
 }

@@ -118,7 +118,7 @@ t.test('file path — exact resolved match', t => {
   t.end()
 })
 
-t.test('file path — link target matches incoming link source', t => {
+t.test('file path — link target matches canonical project-relative source', t => {
   const targetPath = require('node:path').resolve('local-pkg')
   const target = node({
     name: 'local-pkg',
@@ -130,10 +130,35 @@ t.test('file path — link target matches incoming link source', t => {
   target.realpath = targetPath
   target.linksIn = new Set([{ resolved: 'file:../local-pkg' }])
 
-  t.equal(isScriptAllowed(target, { 'file:../local-pkg': true }), true)
+  t.equal(isScriptAllowed(target, { 'file:../local-pkg': true }), null)
   t.equal(isScriptAllowed(target, { 'file:local-pkg': true }), true)
-  t.equal(isScriptAllowed(target, { 'file:../local-pkg': false }), false)
+  t.equal(isScriptAllowed(target, { 'file:../local-pkg': false }), null)
   t.equal(isScriptAllowed(target, { 'file:../other': true }), null)
+  t.end()
+})
+
+t.test('file path — relative link specs are resolved from one project root', t => {
+  const path = require('node:path')
+  const rootPath = path.resolve('project')
+  const approvedPath = path.resolve(rootPath, '../../tool')
+  const attackerPath = path.resolve('attacker-tool')
+  const linkedTarget = (targetPath) => {
+    const target = node({
+      name: 'tool',
+      packageName: 'tool',
+      version: '1.0.0',
+    })
+    target.resolved = null
+    target.path = targetPath
+    target.realpath = targetPath
+    target.root = { path: rootPath }
+    target.linksIn = new Set([{ resolved: 'file:../../tool' }])
+    return target
+  }
+
+  const policy = { 'file:../../tool': true }
+  t.equal(isScriptAllowed(linkedTarget(approvedPath), policy), true)
+  t.equal(isScriptAllowed(linkedTarget(attackerPath), policy), null)
   t.end()
 })
 
